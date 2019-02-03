@@ -38,13 +38,19 @@ namespace Lykke.Service.LiquidityEngine
                 .ForMember(dest => dest.Levels, opt => opt.Ignore())
                 .ForMember(dest => dest.CrossInstruments, opt => opt.Ignore());
 
+            CreateMap<InstrumentLevel, InstrumentLevelModel>(MemberList.Source);
+            CreateMap<InstrumentLevelModel, InstrumentLevel>(MemberList.Destination);
+            CreateMap<InstrumentLevelAddModel, InstrumentLevel>(MemberList.Destination)
+                .ForMember(dest => dest.Id, opt => opt.Ignore());
+
             CreateMap<InternalOrder, InternalOrderModel>(MemberList.Source);
 
-            CreateMap<InternalOrder, OrderModel>(MemberList.Source)
+            CreateMap<InternalOrder, OrderModel>(MemberList.Destination)
+                .ForMember(dest => dest.OrderId, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.AssetPair, opt => opt.MapFrom(src => src.AssetPairId))
+                .ForMember(dest => dest.OriginalPrice, opt => opt.MapFrom(src => src.Price))
+                .ForMember(dest => dest.OriginalVolume, opt => opt.MapFrom(src => src.Volume))
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => ToOrderStatus(src.Status)));
-
-            CreateMap<BalanceOperation, BalanceOperationModel>(MemberList.Source);
-            CreateMap<BalanceOperationModel, BalanceOperation>(MemberList.Destination);
 
             CreateMap<BalanceOperation, BalanceOperationModel>(MemberList.Source);
             CreateMap<BalanceOperationModel, BalanceOperation>(MemberList.Destination);
