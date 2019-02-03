@@ -1,10 +1,13 @@
-﻿using AutoMapper;
+﻿using System.ComponentModel;
+using AutoMapper;
 using JetBrains.Annotations;
+using Lykke.Common.InternalExchange.Client.Models;
 using Lykke.Service.LiquidityEngine.Client.Models.AssetPairLinks;
 using Lykke.Service.LiquidityEngine.Client.Models.AssetSettings;
 using Lykke.Service.LiquidityEngine.Client.Models.Audit;
 using Lykke.Service.LiquidityEngine.Client.Models.CrossRateInstruments;
 using Lykke.Service.LiquidityEngine.Client.Models.Instruments;
+using Lykke.Service.LiquidityEngine.Client.Models.InternalOrders;
 using Lykke.Service.LiquidityEngine.Client.Models.MarketMaker;
 using Lykke.Service.LiquidityEngine.Client.Models.OrderBooks;
 using Lykke.Service.LiquidityEngine.Client.Models.PnLStopLossEngines;
@@ -40,13 +43,22 @@ namespace Lykke.Service.LiquidityEngine
             CreateMap<InstrumentLevelAddModel, InstrumentLevel>(MemberList.Destination)
                 .ForMember(dest => dest.Id, opt => opt.Ignore());
 
+            CreateMap<InternalOrder, InternalOrderModel>(MemberList.Source);
+
+            CreateMap<InternalOrder, OrderModel>(MemberList.Destination)
+                .ForMember(dest => dest.OrderId, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.AssetPair, opt => opt.MapFrom(src => src.AssetPairId))
+                .ForMember(dest => dest.OriginalPrice, opt => opt.MapFrom(src => src.Price))
+                .ForMember(dest => dest.OriginalVolume, opt => opt.MapFrom(src => src.Volume))
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => ToOrderStatus(src.Status)));
+
             CreateMap<BalanceOperation, BalanceOperationModel>(MemberList.Source);
             CreateMap<BalanceOperationModel, BalanceOperation>(MemberList.Destination);
 
             CreateMap<ExternalTrade, ExternalTradeModel>(MemberList.Source);
             CreateMap<InternalTrade, InternalTradeModel>(MemberList.Source);
             CreateMap<SettlementTrade, SettlementTradeModel>(MemberList.Source);
-            
+
             CreateMap<Position, PositionModel>(MemberList.Source)
                 .ForMember(dest => dest.Trades, opt => opt.MapFrom(src => string.IsNullOrEmpty(src.TradeId)
                     ? new string[0]
@@ -55,9 +67,9 @@ namespace Lykke.Service.LiquidityEngine
             CreateMap<RemainingVolume, RemainingVolumeModel>(MemberList.Source);
 
             CreateMap<PositionSummaryReport, SummaryReportModel>(MemberList.Source);
-            
+
             CreateMap<BalanceIndicatorsReport, BalanceIndicatorsReportModel>(MemberList.Source);
-            
+
             CreateMap<BalanceReport, BalanceReportModel>(MemberList.Source);
 
             CreateMap<OrderBook, OrderBookModel>(MemberList.Source);
@@ -92,6 +104,27 @@ namespace Lykke.Service.LiquidityEngine
 
             CreateMap<AssetPairMarkup, AssetPairMarkupModel>(MemberList.Source);
             CreateMap<AssetPairMarkupModel, AssetPairMarkup>(MemberList.Destination);
+        }
+
+        private static OrderStatus ToOrderStatus(Domain.InternalOrderStatus internalOrderStatus)
+        {
+            switch (internalOrderStatus)
+            {
+                case Domain.InternalOrderStatus.New:
+                case Domain.InternalOrderStatus.Reserved:
+                case Domain.InternalOrderStatus.Executed:
+                case Domain.InternalOrderStatus.Transferred:
+                case Domain.InternalOrderStatus.Failed:
+                    return OrderStatus.InProgress;
+                case Domain.InternalOrderStatus.Rejected:
+                case Domain.InternalOrderStatus.Cancelled:
+                    return OrderStatus.Reject;
+                case Domain.InternalOrderStatus.Completed:
+                    return OrderStatus.Done;
+                default:
+                    throw new InvalidEnumArgumentException(nameof(internalOrderStatus), (int) internalOrderStatus,
+                        typeof(Domain.InternalOrderStatus));
+            }
         }
     }
 }
