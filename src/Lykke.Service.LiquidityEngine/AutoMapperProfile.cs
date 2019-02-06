@@ -50,7 +50,19 @@ namespace Lykke.Service.LiquidityEngine
                 .ForMember(dest => dest.AssetPair, opt => opt.MapFrom(src => src.AssetPairId))
                 .ForMember(dest => dest.OriginalPrice, opt => opt.MapFrom(src => src.Price))
                 .ForMember(dest => dest.OriginalVolume, opt => opt.MapFrom(src => src.Volume))
-                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => ToOrderStatus(src.Status)));
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => ToModel(src.Status)));
+
+            CreateMap<InternalOrder, Common.ExchangeAdapter.SpotController.Records.OrderModel>(MemberList.Destination)
+                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.Symbol, opt => opt.MapFrom(src => src.AssetPairId))
+                .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price))
+                .ForMember(dest => dest.OriginalVolume, opt => opt.MapFrom(src => src.Volume))
+                .ForMember(dest => dest.Timestamp, opt => opt.MapFrom(src => src.CreatedDate))
+                .ForMember(dest => dest.AvgExecutionPrice, opt => opt.MapFrom(src => src.ExecutedPrice ?? 0))
+                .ForMember(dest => dest.ExecutedVolume, opt => opt.MapFrom(src => src.ExecutedVolume ?? 0))
+                .ForMember(dest => dest.RemainingAmount, opt => opt.Ignore())
+                .ForMember(dest => dest.TradeType, opt => opt.MapFrom(src => ToSpotModel(src.Type)))
+                .ForMember(dest => dest.ExecutionStatus, opt => opt.MapFrom(src => ToSpotModel(src.Status)));
 
             CreateMap<BalanceOperation, BalanceOperationModel>(MemberList.Source);
             CreateMap<BalanceOperationModel, BalanceOperation>(MemberList.Destination);
@@ -106,7 +118,7 @@ namespace Lykke.Service.LiquidityEngine
             CreateMap<AssetPairMarkupModel, AssetPairMarkup>(MemberList.Destination);
         }
 
-        private static OrderStatus ToOrderStatus(Domain.InternalOrderStatus internalOrderStatus)
+        private static OrderStatus ToModel(Domain.InternalOrderStatus internalOrderStatus)
         {
             switch (internalOrderStatus)
             {
@@ -124,6 +136,42 @@ namespace Lykke.Service.LiquidityEngine
                 default:
                     throw new InvalidEnumArgumentException(nameof(internalOrderStatus), (int) internalOrderStatus,
                         typeof(Domain.InternalOrderStatus));
+            }
+        }
+
+        private static Common.ExchangeAdapter.SpotController.Records.OrderStatus ToSpotModel(
+            Domain.InternalOrderStatus internalOrderStatus)
+        {
+            switch (internalOrderStatus)
+            {
+                case Domain.InternalOrderStatus.New:
+                case Domain.InternalOrderStatus.Reserved:
+                case Domain.InternalOrderStatus.Executed:
+                case Domain.InternalOrderStatus.Transferred:
+                case Domain.InternalOrderStatus.Failed:
+                    return Common.ExchangeAdapter.SpotController.Records.OrderStatus.Active;
+                case Domain.InternalOrderStatus.Rejected:
+                case Domain.InternalOrderStatus.Cancelled:
+                    return Common.ExchangeAdapter.SpotController.Records.OrderStatus.Canceled;
+                case Domain.InternalOrderStatus.Completed:
+                    return Common.ExchangeAdapter.SpotController.Records.OrderStatus.Fill;
+                default:
+                    throw new InvalidEnumArgumentException(nameof(internalOrderStatus), (int) internalOrderStatus,
+                        typeof(Domain.InternalOrderStatus));
+            }
+        }
+
+        private static Common.ExchangeAdapter.Contracts.TradeType ToSpotModel(Domain.LimitOrderType limitOrderType)
+        {
+            switch (limitOrderType)
+            {
+                case Domain.LimitOrderType.Sell:
+                    return Common.ExchangeAdapter.Contracts.TradeType.Sell;
+                case Domain.LimitOrderType.Buy:
+                    return Common.ExchangeAdapter.Contracts.TradeType.Buy;
+                default:
+                    throw new InvalidEnumArgumentException(nameof(limitOrderType), (int) limitOrderType,
+                        typeof(Domain.LimitOrderType));
             }
         }
     }
