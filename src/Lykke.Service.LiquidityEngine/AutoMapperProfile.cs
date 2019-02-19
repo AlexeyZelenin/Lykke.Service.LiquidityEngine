@@ -56,7 +56,7 @@ namespace Lykke.Service.LiquidityEngine
 
             CreateMap<InternalOrder, Common.ExchangeAdapter.SpotController.Records.OrderModel>(MemberList.Destination)
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
-                .ForMember(dest => dest.Symbol, opt => opt.MapFrom(src => src.AssetPairId))
+                .ForMember(dest => dest.AssetPair, opt => opt.MapFrom(src => src.AssetPairId))
                 .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price))
                 .ForMember(dest => dest.OriginalVolume, opt => opt.MapFrom(src => src.Volume))
                 .ForMember(dest => dest.Timestamp, opt => opt.MapFrom(src => src.CreatedDate))
