@@ -146,11 +146,17 @@ namespace Lykke.Service.LiquidityEngine.DomainServices
 
         private async Task<OrderBook> CalculateDirectOrderBookAsync(Instrument instrument)
         {
-            Quote[] quotes = _b2C2OrderBookService.GetQuotes(instrument.AssetPairId);
+            var externalAssetPairId = instrument.AssetPairId;
+
+            // workaround for Lykke production
+            if (externalAssetPairId.Contains("EOScoin"))
+                externalAssetPairId = externalAssetPairId.Replace("EOScoin", "EOS");
+
+            Quote[] quotes = _b2C2OrderBookService.GetQuotes(externalAssetPairId);
 
             if (quotes == null || quotes.Length != 2)
             {
-                _log.WarningWithDetails("No quotes for instrument", instrument.AssetPairId);
+                _log.WarningWithDetails("No quotes for instrument", externalAssetPairId);
                 return null;
             }
 
@@ -188,10 +194,11 @@ namespace Lykke.Service.LiquidityEngine.DomainServices
 
             decimal fiatEquityStopLossMarkup = await _fiatEquityStopLossService.GetFiatEquityMarkup(assetPair.Id);
 
-            decimal stopLossMarkup = await _noFreshQuotesStopLossService.GetNoFreshQuotesMarkup(assetPair.Id);
+            decimal noQuotesMarkup = await _noFreshQuotesStopLossService.GetNoFreshQuotesMarkup(assetPair.Id);
 
             _log.InfoWithDetails("Arguments for Calculator.CalculateLimitOrders(...).", new
             {
+                instrument.AssetPairId,
                 quotes,
                 levels = instrument.Levels.ToArray(),
                 baseAmountBalance = baseAssetBalance?.Amount ?? 0,
@@ -202,9 +209,10 @@ namespace Lykke.Service.LiquidityEngine.DomainServices
                 marketMakerSettingsLimitOrderPriceMarkup = marketMakerSettings.LimitOrderPriceMarkup,
                 pnLStopLossMarkup,
                 fiatEquityStopLossMarkup,
-                stopLossMarkup,
+                noQuotesMarkup,
                 assetPairAccuracy = assetPair.Accuracy,
-                baseAssetAccuracy = baseAsset.Accuracy
+                baseAssetAccuracy = baseAsset.Accuracy,
+                instrument
             });
 
             IReadOnlyCollection<LimitOrder> limitOrders = Calculator.CalculateLimitOrders(
@@ -219,7 +227,7 @@ namespace Lykke.Service.LiquidityEngine.DomainServices
                 marketMakerSettings.LimitOrderPriceMarkup,
                 pnLStopLossMarkup,
                 fiatEquityStopLossMarkup,
-                stopLossMarkup,
+                noQuotesMarkup,
                 assetPair.Accuracy,
                 baseAsset.Accuracy);
 
